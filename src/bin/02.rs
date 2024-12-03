@@ -1,9 +1,29 @@
 advent_of_code::solution!(2);
-use itertools::Itertools;
 
-fn is_safe(levels: Vec<u32>) -> bool {
-    levels.windows(2).all(|w| (w[0] > w[1] && w[0] <= w[1] + 3))
-        || levels.windows(2).all(|w| (w[1] > w[0] && w[1] <= w[0] + 3))
+trait IsSafe {
+    fn is_safe(&self, damped: bool) -> bool;
+}
+
+impl IsSafe for Vec<u32> {
+    fn is_safe(&self, damped: bool) -> bool {
+        let mut changes: Vec<i32> = vec![];
+        self.windows(2)
+            .for_each(|w| changes.push(w[1] as i32 - w[0] as i32));
+        let _safe = changes.clone().into_iter().filter(|w| *w <= 3 && *w >= -3);
+        if (changes.iter().all(|w| *w > 0) || changes.iter().all(|w| *w < 0))
+            && _safe.clone().count() == changes.len()
+        {
+            true
+        } else {
+            dbg!(self);
+            dbg!(changes.clone());
+            dbg!(
+                (changes.iter().all(|w| *w > 0) || changes.iter().all(|w| *w < 0))
+                    && _safe.count() == changes.len()
+            );
+            false
+        }
+    }
 }
 
 pub fn part_one(input: &str) -> Option<u32> {
@@ -12,7 +32,7 @@ pub fn part_one(input: &str) -> Option<u32> {
             .split(' ')
             .map(|n| n.parse::<u32>().unwrap())
             .collect::<Vec<u32>>();
-        if is_safe(nums) {
+        if nums.is_safe(false) {
             Some(acc + 1)
         } else {
             Some(acc)
