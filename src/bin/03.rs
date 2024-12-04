@@ -4,8 +4,8 @@ advent_of_code::solution!(3);
 
 #[derive(Debug, Clone)]
 struct Operation {
-    name: String,
-    operands: (i32, i32),
+    name: &'static str,
+    operands: Vec<i32>,
     result: i32,
 }
 
@@ -214,33 +214,46 @@ fn whitespace<'a>() -> impl Parser<'a, char> {
     pred(any_char, |c| c.is_whitespace())
 }
 
-fn operands<'a>() -> impl Parser<'a, (i32, i32)> {
-    pair(
-        right(
-            pair(match_literal("("), zero_or_more(whitespace())),
-            one_or_two_or_three(any_number()).map(|ns| (ns.iter().join("")).parse().unwrap()),
+fn operands<'a>() -> impl Parser<'a, Vec<i32>> {
+    zero_or_more(left(
+        one_or_two_or_three(any_number()).map(|w| (w.iter().join("")).parse().unwrap()),
+        pair(
+            zero_or_more(pair(zero_or_more(whitespace()), match_literal(","))),
+            zero_or_more(whitespace()),
         ),
-        left(
-            right(
-                pair(
-                    zero_or_more(whitespace()),
-                    pair(match_literal(","), zero_or_more(whitespace())),
-                ),
-                one_or_two_or_three(any_number()).map(|ns| (ns.iter().join("")).parse().unwrap()),
-            ),
-            match_literal(")"),
-        ),
-    )
+    ))
+    // pair(
+    //     right(
+    //         pair(match_literal("("), zero_or_more(whitespace())),
+    //         one_or_two_or_three(any_number()).map(|ns| (ns.iter().join("")).parse().unwrap()),
+    //     ),
+    //     left(
+    //         right(
+    //             pair(
+    //                 zero_or_more(whitespace()),
+    //                 pair(match_literal(","), zero_or_more(whitespace())),
+    //             ),
+    //             one_or_two_or_three(any_number()).map(|ns| (ns.iter().join("")).parse().unwrap()),
+    //         ),
+    //         match_literal(")"),
+    //     ),
+    // )
 }
 
 fn function<'a>(expected: &'static str) -> impl Parser<'a, Operation> {
-    right(
-        match_literal(expected),
-        operands().map(|(n1, n2)| Operation {
-            name: expected.to_owned(),
-            operands: (n1, n2),
-            result: n1 * n2,
-        }),
+    left(
+        right(
+            pair(match_literal(expected), match_literal("(")),
+            operands().map(move |w| Operation {
+                name: expected,
+                operands: w.clone(),
+                result: match expected {
+                    "mul" => w.into_iter().reduce(|acc, x| x * acc).unwrap_or(0),
+                    &_ => 0,
+                },
+            }),
+        ),
+        match_literal(")"),
     )
 }
 
@@ -254,27 +267,59 @@ pub fn part_one(input: &str) -> Option<u32> {
                 cur_input = rest;
             }
             Err(_) => {
-                cur_input = &cur_input[1..];
                 if cur_input.is_empty() {
                     break;
                 }
+                cur_input = &cur_input[1..];
             }
         }
     }
-    Some(ops.into_iter().fold(0, |acc, o| acc + o.result as u32))
+    Some(
+        ops.into_iter()
+            .filter(|o| o.operands.len() == 2)
+            .fold(0, |acc, o| acc + o.result as u32),
+    )
 }
 
 pub fn part_two(input: &str) -> Option<u32> {
-    None
+    let mut cur_input = input;
+    let mut enabled = true;
+    let mut ops = vec![];
+    loop {
+        match either(function("mul"), either(function("do"), function("don't"))).parse(cur_input) {
+            Ok((rest, parsed)) => {
+                match parsed.name {
+                    "do" => enabled = true,
+                    "don't" => enabled = false,
+                    "mul" => {
+                        if enabled {
+                            ops.push(parsed)
+                        }
+                    }
+                    &_ => (),
+                }
+                cur_input = rest;
+            }
+            Err(_) => {
+                if cur_input.is_empty() {
+                    break;
+                }
+                cur_input = &cur_input[1..];
+            }
+        }
+    }
+    Some(
+        ops.into_iter()
+            .filter(|o| o.operands.len() == 2)
+            .fold(0, |acc, o| acc + o.result as u32),
+    )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
     #[test]
     fn test_part_one() {
-        //        xmul(2,4)%&mul[3,7]!@^do_not_mul(5,5)+mul(32,64]then(mul(11,8)mul(8,5))
         let result = part_one(&advent_of_code::template::read_file("examples", DAY));
         assert_eq!(result, Some(161));
     }
