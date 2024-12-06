@@ -1,3 +1,7 @@
+use std::collections::HashSet;
+
+use itertools::Itertools;
+
 advent_of_code::solution!(4);
 
 struct WordSearch {
@@ -112,17 +116,17 @@ pub fn part_one(input: &str) -> Option<u32> {
     let puzzle = WordSearch::new(input)?;
     Some(
         [
-            (-1, -1),
-            (-1, 0),
-            (0, -1),
-            (1, 1),
-            (1, 0),
-            (0, 1),
-            (-1, 1),
-            (1, -1),
+            SomeHelpers::l_search,
+            SomeHelpers::j_search,
+            SomeHelpers::k_search,
+            SomeHelpers::h_search,
+            SomeHelpers::lk_search,
+            SomeHelpers::lj_search,
+            SomeHelpers::hk_search,
+            SomeHelpers::hj_search,
         ]
         .iter()
-        .map(|(x, y)| puzzle.search("XMAS", *x, *y).len())
+        .map(|f| f(&puzzle, "XMAS").len())
         .sum::<usize>()
         .try_into()
         .unwrap(),
@@ -130,7 +134,25 @@ pub fn part_one(input: &str) -> Option<u32> {
 }
 
 pub fn part_two(input: &str) -> Option<u32> {
-    None
+    let puzzle = WordSearch::new(input)?;
+    let mut count = 0;
+    let mut expected: HashSet<&usize> = HashSet::new();
+    Some(
+        [
+            SomeHelpers::lk_search,
+            SomeHelpers::lj_search,
+            SomeHelpers::hk_search,
+            SomeHelpers::hj_search,
+        ]
+        .iter()
+        .flat_map(|f| f(&puzzle, "MAS").into_iter())
+        .counts_by(|c| c[1].1)
+        .into_iter()
+        .filter(|(_, c)| *c > 1)
+        .count()
+        .try_into()
+        .unwrap(),
+    )
 }
 
 #[cfg(test)]
@@ -146,6 +168,6 @@ mod tests {
     #[test]
     fn test_part_two() {
         let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        assert_eq!(result, Some(9));
     }
 }
